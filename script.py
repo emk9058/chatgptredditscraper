@@ -1,55 +1,32 @@
-import requests
-import matplotlib.pyplot as plt
-from datetime import datetime, timezone
+import praw
 
-def scrape_subreddit(subreddit_name, start_epoch, end_epoch):
-    url = f"https://api.pushshift.io/reddit/search/comment/?subreddit={subreddit_name}&after={start_epoch}&before={end_epoch}&size=500"
-    response = requests.get(url)
-    data = response.json()['data']
-    
-    comments_text = ""
-    for comment in data:
-        comments_text += comment['body'] + " "
-    
-    return comments_text
+client_id = 'g5y3I5vBeSdokQan8iRuNQ'
+client_secret = 'yntbv8bWDM6iOzwIY_qBR5my8y7Vhg'
+user_agent = 'script:word_count:v1.0 (by u/Cute-Ad-6652)'
 
-def count_words(text, words):
-    word_count = {word: 0 for word in words}
-    words = text.lower().split()
-    for word in words:
-        if word in word_count:
-            word_count[word] += 1
+reddit = praw.Reddit(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
+
+def count_words(subreddit_name, target_words, limit=500):
+    word_count = {word: 0 for word in target_words}
+    subreddit = reddit.subreddit(subreddit_name)
+    i = 0
+    for submission in subreddit.new(limit=limit):
+         i+=1
+         print(i)
+         for word in target_words:
+            word_count[word] += submission.title.lower().count(word.lower())
+            submission.comments.replace_more(limit=0)
+            for comment in submission.comments.list():
+                word_count[word] += comment.body.lower().count(word.lower())
+                
     return word_count
 
-def main():
-    subreddit_name = "ChatGPTJailbreak"
-    
-    current_time = int(datetime.now(timezone.utc).timestamp())
-    one_year_ago = current_time - (365 * 24 * 60 * 60)
-    
-    scraped_text = ""
-    start_epoch = current_time
-    end_epoch = one_year_ago
-    while start_epoch > end_epoch:
-        text = scrape_subreddit(subreddit_name, end_epoch, start_epoch)
-        scraped_text += text
-        start_epoch = end_epoch
-        end_epoch = start_epoch + (365 * 24 * 60 * 60)
-    
-    words = input("Enter a list of words separated by spaces: ").split()
-    word_counts = count_words(scraped_text, words)
-    
-    print("Word Counts:")
-    for word, count in word_counts.items():
-        print(f"{word}: {count}")
-    
-    # Plotting the bar graph
-    plt.bar(word_counts.keys(), word_counts.values())
-    plt.xlabel('Words')
-    plt.ylabel('Counts')
-    plt.title(f'Word Counts in "{subreddit_name}" Subreddit (Past Year)')
-    plt.xticks(rotation=45)
-    plt.show()
+subreddit_name = 'ChatGPTJailbreak'
+target_words = ['dan', 'do-anything-now','do anything now','word substitution','word-substitution','substitution','developer mode',
+                'developer', 'roleplay', 'role play','role-play', 'aim', 'always intelligent and machiavellian',
+                'always intelligent machiavellian', 'ucar', 'universal comprehensive answer resource'
+                ,'translatorbot', 'translator bot','translator', 'hypothetical', 'hypotheticals', 'act-like', 'act like']
 
-if __name__ == "__main__":
-    main()
+
+results = count_words(subreddit_name, target_words)
+print(results)
